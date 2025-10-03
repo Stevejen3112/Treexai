@@ -232,7 +232,10 @@ export const userStakingStore = create<UserStakingState>((set, get) => ({
     if (filters?.poolId) params.poolId = filters.poolId;
     if (filters?.status) params.status = filters.status;
 
-    const { data, error } = await $fetch<StakingPosition[]>({
+    const { data, error } = await $fetch<{
+      data: StakingPosition[];
+      pagination: any;
+    }>({
       url: "/api/staking/position",
       silentSuccess: true,
       params,
@@ -241,7 +244,7 @@ export const userStakingStore = create<UserStakingState>((set, get) => ({
       set({ error, isLoading: false });
       return;
     }
-    const enrichedPositions = get().enrichPositionData(data || []);
+    const enrichedPositions = get().enrichPositionData(data?.data || []);
     set({ positions: enrichedPositions, isLoading: false });
   },
 
