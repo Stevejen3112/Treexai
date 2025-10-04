@@ -21,9 +21,13 @@ class WebSocketManager {
   private pongTimeoutMs: number;
 
   constructor(wsPath: string, config?: WebSocketManagerConfig) {
-    const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const wsHost = window.location.host.replace("3000", "4000");
-    this.url = `${wsProtocol}//${wsHost}${wsPath}`;
+    if (process.env.NEXT_PUBLIC_WEBSOCKET_URL) {
+      this.url = `${process.env.NEXT_PUBLIC_WEBSOCKET_URL}${wsPath}`;
+    } else {
+      const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+      const wsHost = window.location.host.replace("3000", "4000");
+      this.url = `${wsProtocol}//${wsHost}${wsPath}`;
+    }
 
     // Set configurable parameters with defaults.
     this.pingIntervalMs = config?.pingIntervalMs || 30000;

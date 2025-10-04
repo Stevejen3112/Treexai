@@ -211,7 +211,7 @@ export const userStakingStore = create<UserStakingState>((set, get) => ({
           tokenSymbol: position.pool.symbol,
           rewardTokenSymbol: position.pool.symbol,
           apr: position.pool.apr,
-          pendingRewards: 0,
+          pendingRewards: position.earnings?.unclaimed || 0,
           lockPeriodEnd: position.endDate,
           icon: position.pool.icon || `/img/crypto/${position.pool.symbol.toLowerCase()}.svg`,
         };
@@ -224,7 +224,7 @@ export const userStakingStore = create<UserStakingState>((set, get) => ({
         tokenSymbol: "???",
         rewardTokenSymbol: "???",
         apr: 0,
-        pendingRewards: 0,
+        pendingRewards: position.earnings?.unclaimed || 0,
         lockPeriodEnd: position.endDate,
         icon: `/img/placeholder.svg`,
       };
@@ -238,7 +238,7 @@ export const userStakingStore = create<UserStakingState>((set, get) => ({
     if (filters?.poolId) params.poolId = filters.poolId;
     if (filters?.status) params.status = filters.status;
 
-    const { data, error } = await $fetch<StakingPosition[]>({
+    const { data, error } = await $fetch<{ data: StakingPosition[] }>({
       url: "/api/staking/position",
       silentSuccess: true,
       params,
@@ -248,7 +248,7 @@ export const userStakingStore = create<UserStakingState>((set, get) => ({
       return;
     }
     // Ensure data is always an array before passing to enrichPositionData
-    const positionsArray = Array.isArray(data) ? data : [];
+    const positionsArray = data?.data && Array.isArray(data.data) ? data.data : [];
     const enrichedPositions = get().enrichPositionData(positionsArray);
     set({ positions: enrichedPositions, isLoading: false });
   },
