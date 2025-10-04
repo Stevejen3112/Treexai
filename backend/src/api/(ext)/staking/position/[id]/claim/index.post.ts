@@ -263,20 +263,23 @@ export default async (data: Handler) => {
       transaction
     });
 
-    // Create wallet transaction record for audit trail
-    await models.walletTransaction.create({
-      userId: user.id,
-      walletId: wallet.id,
-      amount: totalClaimAmount,
-      type: 'DEPOSIT',
-      status: 'COMPLETED',
-      description: `Staking rewards claim from position ${position.id}`,
-      metadata: {
-        source: 'STAKING_CLAIM',
-        positionId: position.id,
-        earningIds: unclaimedEarnings.map(e => e.id)
-      }
-    }, { transaction });
+    // Create transaction record for audit trail
+    await models.transaction.create(
+      {
+        userId: user.id,
+        walletId: wallet.id,
+        amount: totalClaimAmount,
+        type: "STAKING_REWARD",
+        status: "COMPLETED",
+        description: `Staking rewards claim from position ${position.id}`,
+        referenceId: position.id,
+        metadata: JSON.stringify({
+          source: "STAKING_CLAIM",
+          earningIds: unclaimedEarnings.map((e) => e.id),
+        }),
+      },
+      { transaction }
+    );
 
     // Create updated notification using the new format
     await createNotification({

@@ -192,24 +192,25 @@ export default async (data: Handler) => {
           }
         )
 
-        // Create wallet transaction record
-        await models.walletTransaction.create(
+        // Create transaction record
+        await models.transaction.create(
           {
+            userId: user.id,
             walletId: wallet.id,
-            type: 'DEPOSIT',
+            type: "DEPOSIT",
+            status: "COMPLETED",
             amount: targetTransaction.amount,
-            balance: wallet.balance + targetTransaction.amount,
             description: `Mollie deposit - ${targetTransaction.amount} ${currency}`,
             referenceId: targetTransaction.uuid,
-            metadata: {
-              gateway: 'mollie',
+            metadata: JSON.stringify({
+              gateway: "mollie",
               molliePaymentId: molliePayment.id,
               method: molliePayment.method,
-              processedVia: 'webhook',
-            },
+              processedVia: "webhook",
+            }),
           },
           { transaction: dbTransaction }
-        )
+        );
 
         // Record admin profit if there are fees
         if (molliePayment.settlementAmount && molliePayment.amount) {
