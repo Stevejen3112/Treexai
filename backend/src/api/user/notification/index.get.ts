@@ -64,6 +64,34 @@ export default async (data: Handler) => {
     raw: true,
   });
 
+  // Map over notifications to add the link
+  const notificationsWithLinks = notifications.map((notification) => {
+    let link = "/";
+    switch (notification.type) {
+      case "INVESTMENT":
+      case "FOREX_INVESTMENT":
+        link = `/investments/${notification.referenceId}`;
+        break;
+      case "STAKING":
+        link = `/staking/position/${notification.referenceId}`;
+        break;
+      case "DEPOSIT":
+        link = `/deposits/${notification.referenceId}`;
+        break;
+      case "WITHDRAW":
+        link = `/withdraws/${notification.referenceId}`;
+        break;
+      case "KYC_APPROVED":
+      case "KYC_REJECTED":
+        link = `/kyc`;
+        break;
+      case "NEW_MESSAGE":
+        link = `/support/tickets/${notification.referenceId}`;
+        break;
+    }
+    return { ...notification, link };
+  });
+
   // Calculate statistics
   const total = notifications.length;
   const unread = notifications.filter((n) => !n.read).length;
@@ -92,5 +120,5 @@ export default async (data: Handler) => {
     },
   };
 
-  return { notifications, stats };
+  return { notifications: notificationsWithLinks, stats };
 };

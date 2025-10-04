@@ -206,18 +206,19 @@ export default async (data: Handler) => {
         });
       }
 
-      // Create wallet transaction record
-      await models.walletTransaction.create({
+      // Create transaction record
+      await models.transaction.create({
+        userId: user.id,
         walletId: wallet?.id,
         type: "DEPOSIT",
+        status: "COMPLETED",
         amount: transaction.amount - (transaction.fee || 0),
-        balance: wallet ? wallet.balance + (transaction.amount - (transaction.fee || 0)) : transaction.amount - (transaction.fee || 0),
         description: `Adyen deposit verification - ${reference}`,
-        metadata: {
-          transactionId: transaction.id,
+        referenceId: transaction.id,
+        metadata: JSON.stringify({
           gateway: "adyen",
           pspReference: paymentData.pspReference,
-        },
+        }),
       });
     }
 

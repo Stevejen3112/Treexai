@@ -278,19 +278,22 @@ export default async (data: Handler) => {
     });
 
     // Create wallet transaction record for audit trail
-    await models.walletTransaction.create({
-      userId: user.id,
-      walletId: userWallet.id,
-      amount: amount,
-      type: 'WITHDRAWAL',
-      status: 'COMPLETED',
-      description: `Staked ${amount} ${pool.symbol} in pool ${pool.name}`,
-      metadata: {
-        source: 'STAKING',
-        positionId: position.id,
-        poolId: pool.id
-      }
-    }, { transaction });
+    await models.transaction.create(
+      {
+        userId: user.id,
+        walletId: userWallet.id,
+        amount: amount,
+        type: "STAKING",
+        status: "COMPLETED",
+        description: `Staked ${amount} ${pool.symbol} in pool ${pool.name}`,
+        referenceId: position.id,
+        metadata: JSON.stringify({
+          source: "STAKING",
+          poolId: pool.id,
+        }),
+      },
+      { transaction }
+    );
 
     // Deduct staked amount from availableToStake
     pool.availableToStake = pool.availableToStake - amount;

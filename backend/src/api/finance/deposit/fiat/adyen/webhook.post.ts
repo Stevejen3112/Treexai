@@ -275,19 +275,20 @@ async function handleAuthorisation({
       const depositAmount = transaction.amount - (transaction.fee || 0);
       await wallet.increment("balance", { by: depositAmount });
 
-      // Create wallet transaction record
-      await models.walletTransaction.create({
+      // Create transaction record
+      await models.transaction.create({
+        userId: user.id,
         walletId: wallet.id,
         type: "DEPOSIT",
+        status: "COMPLETED",
         amount: depositAmount,
-        balance: wallet.balance + depositAmount,
         description: `Adyen deposit - ${merchantReference}`,
-        metadata: {
-          transactionId: transaction.id,
+        referenceId: transaction.id,
+        metadata: JSON.stringify({
           gateway: "adyen",
           pspReference,
           eventCode: "AUTHORISATION",
-        },
+        }),
       });
 
       console.log(

@@ -191,20 +191,23 @@ export default async (data: Handler) => {
                   transaction
                 });
 
-                // Create wallet transaction record
-                await models.walletTransaction.create({
-                  userId: position.userId,
-                  walletId: wallet.id,
-                  amount: position.amount,
-                  type: 'DEPOSIT',
-                  status: 'COMPLETED',
-                  description: `Staking position ${position.id} completed - principal returned`,
-                  metadata: {
-                    source: 'STAKING_COMPLETE',
-                    positionId: position.id,
-                    reason: reason || 'Admin action'
-                  }
-                }, { transaction });
+                // Create transaction record
+                await models.transaction.create(
+                  {
+                    userId: position.userId,
+                    walletId: wallet.id,
+                    amount: position.amount,
+                    type: "DEPOSIT",
+                    status: "COMPLETED",
+                    description: `Staking position ${position.id} completed - principal returned`,
+                    referenceId: position.id,
+                    metadata: JSON.stringify({
+                      source: "STAKING_COMPLETE",
+                      reason: reason || "Admin action",
+                    }),
+                  },
+                  { transaction }
+                );
               }
             } else {
               errors.push({
@@ -236,20 +239,23 @@ export default async (data: Handler) => {
                   transaction
                 });
 
-                // Create wallet transaction record
-                await models.walletTransaction.create({
-                  userId: position.userId,
-                  walletId: wallet.id,
-                  amount: position.amount,
-                  type: 'DEPOSIT',
-                  status: 'COMPLETED',
-                  description: `Staking position ${position.id} cancelled - principal returned`,
-                  metadata: {
-                    source: 'STAKING_CANCEL',
-                    positionId: position.id,
-                    reason: reason || 'Admin action'
-                  }
-                }, { transaction });
+                // Create transaction record
+                await models.transaction.create(
+                  {
+                    userId: position.userId,
+                    walletId: wallet.id,
+                    amount: position.amount,
+                    type: "DEPOSIT",
+                    status: "COMPLETED",
+                    description: `Staking position ${position.id} cancelled - principal returned`,
+                    referenceId: position.id,
+                    metadata: JSON.stringify({
+                      source: "STAKING_CANCEL",
+                      reason: reason || "Admin action",
+                    }),
+                  },
+                  { transaction }
+                );
               }
             } else {
               errors.push({

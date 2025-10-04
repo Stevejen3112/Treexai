@@ -21,7 +21,6 @@ module.exports = {
     '^@/(.*)$': '<rootDir>/$1',
     '^@b/(.*)$': '<rootDir>/src/$1',
   },
-  setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
   testTimeout: 20000,
   verbose: true,
   // Help with timer cleanup and handle detection
