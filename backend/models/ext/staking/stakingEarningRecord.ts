@@ -16,7 +16,7 @@ export default class stakingEarningRecord
 
   // Earning details
   amount!: number;
-  type!: "REGULAR" | "BONUS" | "REFERRAL";
+  type!: "REGULAR" | "BONUS" | "REFERRAL" | "PERIODIC";
   description!: string;
   isClaimed!: boolean;
   claimedAt!: Date | null;
@@ -54,13 +54,13 @@ export default class stakingEarningRecord
           },
         },
         type: {
-          type: DataTypes.ENUM("REGULAR", "BONUS", "REFERRAL"),
+          type: DataTypes.ENUM("REGULAR", "BONUS", "REFERRAL", "PERIODIC"),
           allowNull: false,
           defaultValue: "REGULAR",
           validate: {
             isIn: {
-              args: [["REGULAR", "BONUS", "REFERRAL"]],
-              msg: "type: Must be one of: REGULAR, BONUS, REFERRAL",
+              args: [["REGULAR", "BONUS", "REFERRAL", "PERIODIC"]],
+              msg: "type: Must be one of: REGULAR, BONUS, REFERRAL, PERIODIC",
             },
           },
         },

@@ -25,6 +25,7 @@ export default class stakingPosition
   // Additional information
   adminNotes!: string | null;
   completedAt!: Date | null;
+  lastRewardDate!: Date | null;
 
   // Timestamps
   createdAt!: Date;
@@ -147,6 +148,13 @@ export default class stakingPosition
                 );
               }
             },
+          },
+        },
+        lastRewardDate: {
+          type: DataTypes.DATE,
+          allowNull: true,
+          validate: {
+            isDate: { msg: "lastRewardDate: Must be a valid date", args: true },
           },
         },
       },

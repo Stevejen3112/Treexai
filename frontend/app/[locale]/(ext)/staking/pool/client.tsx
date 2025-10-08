@@ -21,7 +21,6 @@ export default function StakingPoolsPage() {
   // Filter states
   const [searchQuery, setSearchQuery] = useState("");
   const [tokenFilter, setTokenFilter] = useState("");
-  const [aprRange, setAprRange] = useState<[number, number]>([0, 20]);
   const [sortBy, setSortBy] = useState("apr_desc");
   const [showFilters, setShowFilters] = useState(false);
 
@@ -35,6 +34,24 @@ export default function StakingPoolsPage() {
   useEffect(() => {
     getPools({ status: "ACTIVE" });
   }, [getPools]);
+
+  // Calculate the maximum APR from the pools, rounding up to the nearest 10 for a cleaner slider.
+  const maxApr = useMemo(() => {
+    if (pools.length === 0) {
+      return 100; // Default max APR if no pools are loaded
+    }
+    const highestApr = Math.max(...pools.map((pool) => pool.apr));
+    return Math.ceil(highestApr / 10) * 10; // Round up to the nearest 10
+  }, [pools]);
+
+  // State for APR range, initialized based on the calculated max APR
+  const [aprRange, setAprRange] = useState<[number, number]>([0, maxApr]);
+
+  // Update the APR range when maxApr changes (e.g., after pools are loaded)
+  useEffect(() => {
+    setAprRange([0, maxApr]);
+  }, [maxApr]);
+
 
   // Get unique tokens from pools
   const uniqueTokens = useMemo(() => {
@@ -160,9 +177,9 @@ export default function StakingPoolsPage() {
                   </span>
                 </div>
                 <Slider
-                  defaultValue={aprRange}
+                  value={aprRange}
                   min={0}
-                  max={20}
+                  max={maxApr}
                   step={0.5}
                   onValueChange={(value) =>
                     setAprRange(value as [number, number])
@@ -196,7 +213,7 @@ export default function StakingPoolsPage() {
                 onClick={() => {
                   setSearchQuery("");
                   setTokenFilter("");
-                  setAprRange([0, 20]);
+                  setAprRange([0, maxApr]);
                   setSortBy("apr_desc");
                 }}
               >
@@ -242,7 +259,7 @@ export default function StakingPoolsPage() {
                   onClick={() => {
                     setSearchQuery("");
                     setTokenFilter("");
-                    setAprRange([0, 20]);
+                    setAprRange([0, maxApr]);
                     setSortBy("apr_desc");
                   }}
                 >

@@ -664,3 +664,231 @@ export async function processStakingPositions() {
     throw error;
   }
 }
+
+/**
+ * Gets the number of days corresponding to a given earning frequency.
+ * @param frequency - The earning frequency string (e.g., "daily", "weekly").
+ * @returns The number of days for the frequency.
+ */
+function getDaysForFrequency(
+  frequency: "daily" | "weekly" | "monthly" | "end_of_term"
+): number {
+  switch (frequency) {
+    case "daily":
+      return 1;
+    case "weekly":
+      return 7;
+    case "monthly":
+      // Using a fixed 30 days for simplicity. For more accuracy, calendar month calculations would be needed.
+      return 30;
+    default:
+      return 0;
+  }
+}
+
+/**
+ * Distributes periodic rewards for active staking positions based on the pool's earning frequency.
+ */
+export async function distributePeriodicRewards() {
+  const cronName = "distributePeriodicRewards";
+  const startTime = Date.now();
+  let processedCount = 0;
+  let failedCount = 0;
+
+  try {
+    broadcastStatus(cronName, "running");
+    broadcastLog(
+      cronName,
+      "Starting distribution of periodic staking rewards"
+    );
+
+    const settings = await getSettingsWithFallback();
+    const autoDistribute = settings.has("stakingAutomaticEarningsDistribution")
+      ? settings.get("stakingAutomaticEarningsDistribution")
+      : false;
+
+    if (!autoDistribute) {
+      broadcastLog(
+        cronName,
+        "Automatic earnings distribution is disabled; skipping periodic rewards.",
+        "info"
+      );
+      broadcastStatus(cronName, "completed", { skipped: true });
+      return;
+    }
+
+    const aprCalculationMethod = settings.has(
+      "stakingDefaultAprCalculationMethod"
+    )
+      ? settings.get("stakingDefaultAprCalculationMethod")
+      : "SIMPLE";
+    const compoundFrequency = settings.has("stakingCompoundFrequency")
+      ? Number.parseInt(settings.get("stakingCompoundFrequency"), 10)
+      : 365;
+
+    const now = new Date();
+    const positionsToProcess = await models.stakingPosition.findAll({
+      where: {
+        status: "ACTIVE",
+        endDate: { [Op.gt]: now }, // Ensure the position has not yet ended
+      },
+      include: [
+        {
+          model: models.stakingPool,
+          as: "pool",
+          where: {
+            earningFrequency: { [Op.notIn]: ["end_of_term", null] },
+          },
+        },
+        {
+          model: models.user,
+          as: "user",
+          attributes: ["id", "email", "firstName", "lastName"],
+        },
+      ],
+    });
+
+    broadcastLog(
+      cronName,
+      `Found ${positionsToProcess.length} active positions in pools with periodic rewards.`
+    );
+
+    if (positionsToProcess.length === 0) {
+      broadcastStatus(cronName, "completed", {
+        duration: Date.now() - startTime,
+        processed: 0,
+      });
+      return;
+    }
+
+    for (const position of positionsToProcess) {
+      const pool = position.pool;
+      const daysForPeriod = getDaysForFrequency(pool.earningFrequency);
+      if (daysForPeriod === 0) continue;
+
+      let lastRewardDate = new Date(
+        position.lastRewardDate || position.startDate
+      );
+
+      // Loop to catch up on any missed reward cycles
+      while (addDays(lastRewardDate, daysForPeriod) <= now) {
+        const t = await sequelize.transaction({
+          isolationLevel: Transaction.ISOLATION_LEVELS.SERIALIZABLE,
+        });
+
+        try {
+          const positionWithLock = await models.stakingPosition.findByPk(
+            position.id,
+            {
+              transaction: t,
+              lock: t.LOCK.UPDATE,
+              include: [
+                { model: models.stakingPool, as: "pool" },
+                { model: models.user, as: "user" },
+              ],
+            }
+          );
+
+          if (!positionWithLock || positionWithLock.status !== "ACTIVE") {
+            await t.rollback();
+            break; // Stop processing this position if it's no longer active
+          }
+
+          const reward = calculateReward(
+            positionWithLock.amount,
+            pool.apr,
+            aprCalculationMethod,
+            daysForPeriod, // Reward for one period
+            compoundFrequency
+          );
+
+          if (reward <= 0) {
+            await t.rollback();
+            // Update lastRewardDate to prevent an infinite loop on zero-reward cycles
+            lastRewardDate = addDays(lastRewardDate, daysForPeriod);
+            position.lastRewardDate = lastRewardDate;
+            await position.save(); // Save outside transaction
+            continue;
+          }
+
+          let userReward = reward;
+          let adminFee = 0;
+
+          if (pool.adminFeePercentage > 0) {
+            adminFee = reward * (pool.adminFeePercentage / 100);
+            userReward = reward - adminFee;
+            await models.stakingAdminEarning.create(
+              {
+                poolId: pool.id,
+                amount: adminFee,
+                isClaimed: false,
+                type: "PLATFORM_FEE",
+                currency: pool.symbol,
+              },
+              { transaction: t }
+            );
+          }
+
+          if (pool.autoCompound) {
+            positionWithLock.amount += userReward;
+          } else {
+            await models.stakingEarningRecord.create(
+              {
+                positionId: positionWithLock.id,
+                amount: userReward,
+                type: "PERIODIC",
+                description: `Periodic earnings for staking in ${pool.name}`,
+                isClaimed: false,
+              },
+              { transaction: t }
+            );
+          }
+
+          lastRewardDate = addDays(lastRewardDate, daysForPeriod);
+          positionWithLock.lastRewardDate = lastRewardDate;
+          await positionWithLock.save({ transaction: t });
+
+          await t.commit();
+          processedCount++;
+
+          // Post-transaction notifications
+          const notificationMessage = pool.autoCompound
+            ? `Your stake in ${pool.name} has auto-compounded with ${userReward.toFixed(8)} ${pool.symbol}. New balance: ${positionWithLock.amount.toFixed(8)} ${pool.symbol}.`
+            : `You've earned ${userReward.toFixed(8)} ${pool.symbol} from your stake in ${pool.name}.`;
+
+          await createNotification({
+            userId: position.user.id,
+            relatedId: position.id,
+            type: "system",
+            title: "Staking Reward Received",
+            message: notificationMessage,
+            link: `/staking/position/${position.id}`,
+          });
+        } catch (error: any) {
+          await t.rollback();
+          failedCount++;
+          logError(
+            `distributePeriodicRewards - position ${position.id}`,
+            error,
+            __filename
+          );
+          break; // Exit loop for this position on error
+        }
+      }
+    }
+
+    broadcastLog(
+      cronName,
+      `Periodic rewards distribution summary: ${processedCount} processed, ${failedCount} failed.`
+    );
+    broadcastStatus(cronName, "completed", {
+      duration: Date.now() - startTime,
+      processed: processedCount,
+      failed: failedCount,
+    });
+  } catch (error: any) {
+    logError(cronName, error, __filename);
+    broadcastStatus(cronName, "failed", { error: error.message });
+    throw error;
+  }
+}
