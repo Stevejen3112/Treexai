@@ -23,7 +23,10 @@ import {
 } from "./crons/wallet";
 import { processForexInvestments } from "./crons/forex";
 import { processIcoOfferings } from "./crons/ico";
-import { processStakingPositions } from "./crons/staking";
+import {
+  processStakingPositions,
+  distributePeriodicRewards,
+} from "./crons/staking";
 import { processMailwizardCampaigns } from "./crons/mailwizard";
 import { processGeneralInvestments } from "./crons/investment";
 import { processAiInvestments } from "./crons/aiInvestment";
@@ -258,6 +261,22 @@ class CronJobManager {
           lastRun: null,
           lastRunError: null,
           category: "ecosystem",
+          status: "idle",
+          progress: 0,
+          lastExecutions: [],
+          nextScheduledRun: null,
+        },
+        {
+          name: "distributePeriodicRewards",
+          title: "Distribute Periodic Staking Rewards",
+          period: 60 * 60 * 1000, // Run every hour
+          description:
+            "Distributes periodic rewards (daily, weekly, etc.) for active staking positions.",
+          function: "distributePeriodicRewards",
+          handler: distributePeriodicRewards,
+          lastRun: null,
+          lastRunError: null,
+          category: "staking",
           status: "idle",
           progress: 0,
           lastExecutions: [],
