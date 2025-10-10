@@ -805,9 +805,12 @@ export async function distributePeriodicRewards() {
           if (reward <= 0) {
             await t.rollback();
             // Update lastRewardDate to prevent an infinite loop on zero-reward cycles
-            lastRewardDate = addDays(lastRewardDate, daysForPeriod);
-            position.lastRewardDate = lastRewardDate;
-            await position.save(); // Save outside transaction
+            const newLastRewardDate = addDays(lastRewardDate, daysForPeriod);
+            await models.stakingPosition.update(
+              { lastRewardDate: newLastRewardDate },
+              { where: { id: position.id } }
+            );
+            lastRewardDate = newLastRewardDate;
             continue;
           }
 

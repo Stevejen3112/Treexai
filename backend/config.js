@@ -37,7 +37,13 @@ console.log(`Config: Database config - Host: ${process.env.DB_HOST}, User: ${pro
 
 // Validate required environment variables
 const requiredEnvVars = ['DB_HOST', 'DB_USER', 'DB_PASSWORD', 'DB_NAME'];
-const missingEnvVars = requiredEnvVars.filter(envVar => !process.env[envVar]);
+const missingEnvVars = requiredEnvVars.filter(envVar => {
+  // Allow empty string for DB_PASSWORD, but not for other required variables
+  if (envVar === 'DB_PASSWORD') {
+    return process.env[envVar] === undefined || process.env[envVar] === null;
+  }
+  return !process.env[envVar];
+});
 
 if (missingEnvVars.length > 0) {
   console.error(`Config: Error - Missing required environment variables: ${missingEnvVars.join(', ')}`);

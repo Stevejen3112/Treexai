@@ -10,6 +10,7 @@ interface stakingPositionAttributes {
   withdrawalRequestDate: Date | null;
   adminNotes: string | null;
   completedAt: Date | null;
+  lastRewardDate: Date | null;
   createdAt?: Date;
   updatedAt?: Date;
   deletedAt?: Date;
@@ -29,4 +30,5 @@ interface stakingPositionCreationAttributes {
   withdrawalRequestDate: Date | null;
   adminNotes: string | null;
   completedAt: Date | null;
+  lastRewardDate: Date | null;
 }

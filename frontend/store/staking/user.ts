@@ -211,7 +211,7 @@ export const userStakingStore = create<UserStakingState>((set, get) => ({
           tokenSymbol: position.pool.symbol,
           rewardTokenSymbol: position.pool.symbol,
           apr: position.pool.apr,
-          pendingRewards: position.earnings?.unclaimed || 0,
+          pendingRewards: position.earnings?.unclaimed ?? 0,
           lockPeriodEnd: position.endDate,
           icon: position.pool.icon || `/img/crypto/${position.pool.symbol.toLowerCase()}.svg`,
         };
@@ -224,7 +224,7 @@ export const userStakingStore = create<UserStakingState>((set, get) => ({
         tokenSymbol: "???",
         rewardTokenSymbol: "???",
         apr: 0,
-        pendingRewards: position.earnings?.unclaimed || 0,
+        pendingRewards: position.earnings?.unclaimed ?? 0,
         lockPeriodEnd: position.endDate,
         icon: `/img/placeholder.svg`,
       };

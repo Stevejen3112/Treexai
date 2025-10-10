@@ -99,34 +99,79 @@ export default async (data: Handler) => {
       });
     }
 
-    // For full withdrawal, the withdrawal amount equals the staked amount.
-    const withdrawalAmount = position.amount;
-
-    // Update the position: mark withdrawal as requested and update the status.
-    await models.stakingPosition.update(
-      {
-        status: "PENDING_WITHDRAWAL",
-        withdrawalRequested: true,
-        withdrawalRequestDate: new Date(),
+    // Calculate unclaimed earnings
+    const unclaimedEarnings = await models.stakingEarningRecord.sum('amount', {
+      where: {
+        positionId: position.id,
+        isClaimed: false,
       },
-      {
-        where: { id: position.id },
-        transaction,
-      }
-    );
+      transaction,
+    });
+
+    const totalWithdrawalAmount = position.amount + unclaimedEarnings;
+
+    // Update user's wallet
+    const wallet = await models.wallet.findOne({
+      where: { userId: user.id, symbol: position.pool.symbol },
+      transaction,
+    });
+
+    if (wallet) {
+      await wallet.increment('balance', { by: totalWithdrawalAmount, transaction });
+    } else {
+      await models.wallet.create({
+        userId: user.id,
+        symbol: position.pool.symbol,
+        balance: totalWithdrawalAmount,
+      }, { transaction });
+    }
+
+    // Mark position as completed
+    await position.update({
+      status: 'COMPLETED',
+      completedAt: new Date(),
+    }, { transaction });
+
+    // Mark earnings as claimed
+    await models.stakingEarningRecord.update({
+      isClaimed: true,
+      claimedAt: new Date(),
+    }, {
+      where: {
+        positionId: position.id,
+        isClaimed: false,
+      },
+      transaction,
+    });
+
+    // Create a transaction log
+    await models.transaction.create({
+      userId: user.id,
+      symbol: position.pool.symbol,
+      amount: totalWithdrawalAmount,
+      type: 'STAKING_WITHDRAWAL',
+      status: 'COMPLETED',
+      fee: 0,
+      metadata: {
+        positionId: position.id,
+        stakedAmount: position.amount,
+        earningsClaimed: unclaimedEarnings,
+      },
+    }, { transaction });
+
 
     // Create a notification for the user.
     await createNotification({
       userId: user.id,
       relatedId: position.id,
       type: "system",
-      title: "Staking Withdrawal Requested",
-      message: `Your withdrawal request for ${withdrawalAmount} ${position.pool.symbol} has been submitted and is pending approval.`,
+      title: "Staking Withdrawal Successful",
+      message: `Your withdrawal of ${totalWithdrawalAmount.toFixed(8)} ${position.pool.symbol} was successful.`,
       link: `/staking/positions/${position.id}`,
       actions: [
         {
-          label: "View Position",
-          link: `/staking/positions/${position.id}`,
+          label: "View Wallet",
+          link: `/wallet`,
           primary: true,
         },
       ],

@@ -2,7 +2,7 @@ interface stakingEarningRecordAttributes {
   id: string;
   positionId: string;
   amount: number;
-  type: "REGULAR" | "BONUS" | "REFERRAL";
+  type: "REGULAR" | "BONUS" | "REFERRAL" | "PERIODIC";
   description: string;
   isClaimed: boolean;
   claimedAt: Date | null;
@@ -19,7 +19,7 @@ interface stakingEarningRecordCreationAttributes {
   id?: string;
   positionId: string;
   amount: number;
-  type: "REGULAR" | "BONUS" | "REFERRAL";
+  type: "REGULAR" | "BONUS" | "REFERRAL" | "PERIODIC";
   description: string;
   isClaimed: boolean;
   claimedAt: Date | null;
